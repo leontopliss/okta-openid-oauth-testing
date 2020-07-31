@@ -1,0 +1,19 @@
+{
+  "name": "okta-nodejs-oauth-testing-access-token",
+  "version": "1.0.0",
+  "description": "An example of how to get an access token for automated testing (not using client credentials)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "crypto": "^1.0.1",
+    "dotenv": "^8.2.0",
+    "isomorphic-fetch": "^2.2.1",
+    "jwt-decode": "^2.2.0",
+    "querystring": "^0.2.0",
+    "url": "^0.11.0"
+  }
+}
