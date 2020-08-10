@@ -101,7 +101,7 @@ async function getOauthToken(oktaDomain, sessionToken, appClientId, appRedirectU
 
     // Check the authorization URL returned a redirect
     // and check the location header is set
-    if (authorizeRes.status == 302 && redirect) {
+    if (authorizeRes.status == 302 && locationHeader) {
         // Parse the fragment returned in the location header
         const fragmentParams = querystring.parse(url.parse(locationHeader).hash.replace('#', ''));
         if (fragmentParams.error_description) {
