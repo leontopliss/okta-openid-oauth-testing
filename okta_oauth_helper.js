@@ -33,7 +33,7 @@ async function getSessionToken(oktaDomain, username, password) {
         throw new Error('authn status: ' + response.status);
     } else if (response.errorSummary) {
         //Okta API error
-        throw new Error('okta api error while atttempting to get session token: ' + response.errorSummary)
+        throw new Error('okta api error while attempting to get session token: ' + response.errorSummary)
     }
 
     return response.sessionToken;
@@ -72,23 +72,38 @@ async function getOauthToken(oktaDomain, sessionToken, appClientId, appRedirectU
     // random 32 char string
     const state = crypto.randomBytes(16).toString('base64');
 
-    // Send the session token as a query param in a GET request to the authorize api
-    const authorizeRes = await fetch(
-        `https://${oktaDomain}/oauth2/default/v1/authorize?` +
+    // construct the authorization url
+    // this includes the session token which will be swapped for an id/access token
+    const authorizeUrl = `https://${oktaDomain}/oauth2/default/v1/authorize?` +
         `response_type=${type}&` +
         `scope=${scopeString}&` +
         `state=${state}&` +
         `nonce=${nonce}&` +
         `client_id=${appClientId}&` +
         `redirect_uri=${appRedirectUri}&` +
-        `sessionToken=${sessionToken}`);
+        `sessionToken=${sessionToken}`
+
+    // Call the authorization URL
+    // The URL returns a redirect carrying id/access tokens in a fragment
+    // We don't follow the redirect as this is necessary 
+    // and if it doesn't exist which might be the case during deployment an error results
+    const authorizeRes = await fetch(authorizeUrl, { 
+        method: 'GET',
+        redirect: 'manual'
+    }).catch(err => console.log(err));
 
     var idToken;
     var accessToken;
 
-    if (authorizeRes.url) {
-        // Parse the fragment on the url returned
-        const fragmentParams = querystring.parse(url.parse(authorizeRes.url).hash.replace('#', ''));
+    // The auth url returns a redirect. The redirect contains the id/access token fragments
+    // get the redirect from the Location header
+    const locationHeader = authorizeRes.headers.get('Location');
+
+    // Check the authorization URL returned a redirect
+    // and check the location header is set
+    if (authorizeRes.status == 302 && redirect) {
+        // Parse the fragment returned in the location header
+        const fragmentParams = querystring.parse(url.parse(locationHeader).hash.replace('#', ''));
         if (fragmentParams.error_description) {
             // if the fragment contains an Okta generated error 
             throw new Error(fragmentParams.error_description);
@@ -101,7 +116,7 @@ async function getOauthToken(oktaDomain, sessionToken, appClientId, appRedirectU
         }
     } else {
         // No url parameter in the response
-        throw new Error('url not returned, full response: ' + authorizeRes);
+        throw new Error('url not returned, status: ' + authorizeRes.status + ' message: ' + authorizeRes.statusText);
     }
 
     return [idToken, accessToken];
