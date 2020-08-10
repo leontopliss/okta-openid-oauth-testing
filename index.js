@@ -1,5 +1,30 @@
+/**
+    MIT License
+
+    Copyright (c) 2020 Leon Topliss
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+*/
+
 const okta = require('./okta_oauth_helper');
 const jwtDecode = require('jwt-decode');
+const otplib = require('otplib');
 const dotenv = require('dotenv');
 dotenv.config();
 
@@ -32,10 +57,26 @@ const SCOPES = ['openid', 'profile', 'email',];
     const oktaPassword = process.env.OKTA_PASSWORD;
     if (!oktaPassword) throw new Error('env variable OKTA_PASSWORD not set');
 
+    // OTP Secret is optional, we will only use this
+    // if Okta responds MFA required
+    const otpSecret = process.env.OTP_SECRET;
+    if (otpSecret && otpSecret.length < 16) {
+        throw new Error('OTP secret is set but is too short');
+    }
 
     // Get a session token
-    const sessionToken = await okta.getSessionToken(oktaDomain, oktaUsername, oktaPassword)
-        .catch(err => console.log(err));
+    var sessionToken;
+    if (otpSecret) {
+        // Using otplib to generate a code from the secret provided
+        const passCode = otplib.authenticator.generate(otpSecret);
+        console.log('OTP Code Generated: ' + passCode);
+        sessionToken = await okta.getSessionToken(oktaDomain, oktaUsername, oktaPassword, passCode)
+            .catch(err => console.log(err));
+    } else {
+        sessionToken = await okta.getSessionToken(oktaDomain, oktaUsername, oktaPassword)
+            .catch(err => console.log(err));
+    }
+    
 
     if (sessionToken) {
         // Get id and access tokens
@@ -66,4 +107,7 @@ const SCOPES = ['openid', 'profile', 'email',];
         // You can now take the access token and pass it to 
         // your endpoint in a header to access protected resources
     }
-})();
+
+
+
+})().catch(err => console.log(err));
